@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
 import { invokeAgent } from "@/lib/agents/invoke";
 import { loadSkill } from "@/lib/templates/loader";
-import { assemblePrompt } from "@/lib/templates/shared";
+import {
+  assemblePrompt,
+  outputLanguageDirective,
+  type OutputLocale,
+} from "@/lib/templates/shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +29,9 @@ type Body = {
    *  implies). Saves output tokens AND prevents creative drift between runs. */
   editFromHtml?: string;
   editFromContent?: string;
+  /** Visible output language for the generated HTML. Defaults to "zh-CN" to
+   *  preserve historical behaviour when the client doesn't send one. */
+  locale?: OutputLocale;
 };
 
 function buildEditPrompt(args: {
@@ -34,8 +41,9 @@ function buildEditPrompt(args: {
   oldContent: string;
   oldHtml: string;
   format: string;
+  locale: OutputLocale;
 }): string {
-  return `你正在执行一次**最小化差异编辑** (diff-edit), 不是从 0 重新生成。
+  return `${outputLanguageDirective(args.locale)}你正在执行一次**最小化差异编辑** (diff-edit), 不是从 0 重新生成。
 
 模板风格: ${args.templateName} (${args.templateAspect})
 输入格式: ${args.format}
@@ -78,6 +86,7 @@ export async function POST(req: NextRequest) {
     binOverride,
     editFromHtml,
     editFromContent,
+    locale = "zh-CN",
   } = body;
   if (!agent || !templateId || !content) {
     return new Response("missing required fields: agent, templateId, content", {
@@ -98,9 +107,10 @@ export async function POST(req: NextRequest) {
       oldContent: editFromContent,
       oldHtml: editFromHtml,
       format,
+      locale,
     });
   } else {
-    prompt = assemblePrompt({ body: skill.body, content, format });
+    prompt = assemblePrompt({ body: skill.body, content, format, locale });
   }
   const abortCtl = new AbortController();
   req.signal?.addEventListener("abort", () => abortCtl.abort(), { once: true });

@@ -37,18 +37,50 @@ export const SHARED_DESIGN_DIRECTIVES = `
 
 `;
 
+/** Locales the generated-HTML output language can be pinned to. Mirrors the
+ *  app `Locale` union in `store.ts`; kept as a local literal so this module
+ *  stays importable from the server route without pulling in client code. */
+export type OutputLocale = "en" | "zh-CN";
+
+/**
+ * Output-language directive, prepended at the very top of the prompt so it
+ * outranks the "中文优先" typography hint inside SHARED_DESIGN_DIRECTIVES.
+ * The instruction language stays Chinese; this block forces the *visible
+ * output* language independently of it.
+ */
+export function outputLanguageDirective(locale: OutputLocale): string {
+  if (locale === "en") {
+    return `【OUTPUT LANGUAGE — HIGHEST PRIORITY, overrides every other instruction below, including the "中文优先" typography hint】
+- ALL human-visible text in the generated HTML (headings, body copy, labels, captions, button text, alt text, chart labels) MUST be written in **English**.
+- These instructions happen to be written in Chinese. That does NOT mean the output should be Chinese — author every visible string in English.
+- Use Latin-text fonts (\`Inter\` / \`Manrope\` / \`SF Pro\` / system-ui). Do NOT load \`Noto Sans SC\` / \`Noto Serif SC\` and do NOT apply 盘古之白 / CJK spacing rules.
+- Only keep non-English text where it appears verbatim in the user's own content (proper nouns, quoted strings, code).
+
+`;
+  }
+  return `【输出语言 — 最高优先级】
+- 生成的 HTML 中所有人类可见文字一律使用**简体中文**。
+- 仅当用户内容里本身出现英文专有名词 / 引文 / 代码时保留原文。
+
+`;
+}
+
 /**
  * Wrap a per-template instruction body with the shared design directives and
  * the user content tail. This is the canonical prompt shape; both inline
  * `buildPrompt` functions in `index.ts` and the skill-folder loader assemble
  * prompts via this helper so behaviour stays identical.
+ *
+ * `locale` pins the visible output language (default `"zh-CN"` preserves the
+ * historical Chinese-first behaviour).
  */
 export function assemblePrompt(opts: {
   body: string;
   content: string;
   format: string;
+  locale?: OutputLocale;
 }): string {
-  return `${SHARED_DESIGN_DIRECTIVES}
+  return `${outputLanguageDirective(opts.locale ?? "zh-CN")}${SHARED_DESIGN_DIRECTIVES}
 ${opts.body.trim()}
 
 【输入格式】: ${opts.format}

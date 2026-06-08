@@ -84,6 +84,7 @@ export function useConvert() {
         templateId: req.templateId,
         content: enrichedContent,
         format: req.format ?? summary.format,
+        locale: store.locale,
         ...(useModel ? { model: useModel } : {}),
         ...(binOverride ? { binOverride } : {}),
         ...(editPayload ?? {}),
